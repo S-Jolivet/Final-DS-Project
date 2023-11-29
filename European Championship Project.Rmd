@@ -1,0 +1,197 @@
+---
+title: "Distance Traveled In Soccer"
+author: "Sven Jolivet"
+date: "2023-11-29"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction
+
+In the dynamic world of soccer, where every pass, sprint, and strategic move can influence the outcome of a game, the distance covered by a team throughout a match doesn't emerge as a pivotal metric. The modern game demands a a blend of skill, teamwork, and relentless physical effort. The distance traveled on the field is not merely a statistical figure but a reflection of the collective energy, endurance, and tactical acumen of the players.
+
+
+## Questions 
+Does running around the field more prompt you to shoot more?
+
+Did running more effect who the tournaments winner was?
+
+## Packages
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(knitr)
+```
+
+
+## Unfiltered Data 
+My data is from data.world and the author is Mikhail Zhilkin.
+
+https://data.world/cervus/uefa-euro-2020/workspace/file?filename=Match+team+statistics.csv
+
+```{r}
+TeamStats <- read_csv("TeamStats.csv", show_col_types = FALSE)
+glimpse(TeamStats)
+
+```
+
+## Filtering
+Having 19,000 rows is pretty overwhelming and a lot of the data is not useful so I narrowed it down to key factors that I will be looking for. 
+
+TeamName: Is the Name of the Team
+
+StatsName: The specific stat that we are talking about 
+
+MatchID: The specific match that was played
+
+Value: The numerical value for StatsName
+
+Distance: The distance a team ran 
+
+Shots: The amount of shots attempted
+```{r}
+data <- TeamStats %>% select(TeamName, StatsName, Value, MatchID)
+glimpse(data)
+```
+
+## Total Distance
+Finding the distance each team achieved during each of their games.
+
+The netherlands had the lowest distance ran in a game and Italy had the highest.
+```{r}
+dist_cov <- data %>% 
+  group_by(TeamName) %>% 
+  filter(StatsName == "Distance covered (m)") %>% 
+  mutate(Value = as.numeric(Value))
+
+kable_dis <- dist_cov %>% group_by(TeamName) %>% 
+  select(TeamName, Value) %>% 
+  arrange(Value)
+
+kable(kable_dis)
+
+
+```
+
+
+
+```{r}
+
+avg_dist <- dist_cov %>% group_by(TeamName) %>% 
+  select(Value,TeamName) %>% 
+  summarise(mean(Value, na.rm = T))
+```
+
+## Comparing Distances
+
+
+```{r}
+Distance <- suppressWarnings(as.numeric(dist_cov$Distance))
+```
+
+
+Since it is a tournament not all teams play the same amount of games, so I needed to take the average of the games they did play in order to compare them. 
+```{r}
+names(avg_dist)[2] <- "Distance"
+```
+
+
+```{r}
+england_dis <- dist_cov %>% group_by(TeamName) %>%
+  filter(TeamName == "England") %>% 
+  summarise(mean(Value))
+
+```
+
+```{r}
+italy_dis <- dist_cov %>% group_by(TeamName) %>%
+  filter(TeamName == "Italy") %>% 
+  summarise(mean(Value))
+
+wales_dis <- dist_cov %>% group_by(TeamName) %>%
+  filter(TeamName == "Wales") %>% 
+  summarise(mean(Value))
+
+Netherlands_dis <- dist_cov %>% group_by(TeamName) %>%
+  filter(TeamName == "Netherlands") %>% 
+  summarise(mean(Value))
+
+compare_dis <- full_join(italy_dis,england_dis)
+
+compare_dis <- full_join(compare_dis, Netherlands_dis)
+
+compare_dis <- full_join(compare_dis, wales_dis)
+
+names(compare_dis)[2] <- "Value"
+
+```
+
+
+## Finalists 
+As you can see the the finalist did run more than 2 teams that were eleminated earlier into the tournament. 
+
+```{r}
+dist_graph <- ggplot(compare_dis, aes(x=TeamName, y = Value, fill = TeamName))
+dist_graph + geom_bar(stat = "identity")
+```
+
+## Total Attempts
+
+```{r}
+
+total_attempts <- data %>%
+  group_by(TeamName) %>% 
+  filter(StatsName == "Total Attempts") %>% 
+  mutate(Value = as.numeric(Value)) %>% 
+  arrange(Value)
+
+kable_attempts <- total_attempts %>% group_by(TeamName) %>% 
+  select(TeamName, Value)
+  
+  
+kable(kable_attempts)
+```
+## Distance Vs Shots Attempted
+Does running around the field more prompt you to shoot more?
+
+I took the average shots attempted for each country and joined the average distance together.
+In order to see if there is a trend between the two factors.
+
+```{r}
+avg_attempts <- total_attempts %>% group_by(TeamName) %>% 
+  select(Value,TeamName) %>% 
+  summarise(mean(Value, na.rm = T))
+
+names(avg_attempts)[2] <- "Value"
+kable(avg_attempts)
+```
+
+The highest shot average was Italy and the lowest was Finland
+ 
+```{r}
+dist_attempts <- full_join(avg_attempts,avg_dist)
+names(dist_attempts)[2] <- "Shots"
+names(dist_attempts)[3] <- "Distance"
+
+kable(dist_attempts)
+
+```
+
+## Chart
+
+```{r}
+avg_dist_plot <- ggplot(data = dist_attempts %>% select(Shots, Distance), mapping = aes(x = Shots, y = Distance))
+avg_dist_plot + geom_point()
+
+```
+
+
+The team with the most shot attempts and average distance traveled ended up winning the tournament. 
+
+
+## Summary
+There are many important stats that can show why a team has more success than another team. My goal was to present a stat not so heavily represented and show how it can effect an outcome. I conclude that it isn't as conclusive as I had thought, but in the case of the 2020 European championship the team with the highest average distance ran won the tournament.
+
